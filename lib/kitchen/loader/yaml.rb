@@ -34,9 +34,9 @@ module Kitchen
       #
       # @param options [Hash] configuration for a new loader
       # @option options [String] :project_config path to the Kitchen
-      #   config YAML file (default: `./.kitchen.yml`)
+      #   config YAML file (default: `./kitchen.yml`)
       # @option options [String] :local_config path to the Kitchen local
-      #   config YAML file (default: `./.kitchen.local.yml`)
+      #   config YAML file (default: `./kitchen.local.yml`)
       # @option options [String] :global_config path to the Kitchen global
       #   config YAML file (default: `$HOME/.kitchen/config.yml`)
       # @option options [String] :process_erb whether or not to process YAML
@@ -192,6 +192,10 @@ module Kitchen
       # @return [String] an absolute path to a Kitchen config YAML file
       # @api private
       def default_config_file
+        if File.exist?(kitchen_yml) && File.exist?(dot_kitchen_yml)
+          raise UserError, "Both #{kitchen_yml} and #{dot_kitchen_yml} found. Please use one or the other. The hidden file will be deprecated in the future."
+        end
+
         File.exist?(kitchen_yml) ? kitchen_yml : dot_kitchen_yml
       end
 
@@ -207,11 +211,19 @@ module Kitchen
 
       # Determines the default absolute path to the Kitchen local YAML file,
       # based on the base Kitchen config YAML file.
-      #
+
       # @return [String] an absolute path to a Kitchen local YAML file
       # @api private
       def default_local_config_file
-        config_file.sub(/(#{File.extname(config_file)})$/, '.local\1')
+        default_local_config = config_file.sub(/(#{File.extname(config_file)})$/, '.local\1')
+
+        unhidden_config = default_local_config.sub(/([\/])\.([^\/]*)$/, '\1\2')
+        hidden_config = default_local_config.sub(/([\/])([^\.][^\/]*)$/, '\1.\2')
+        if File.exist?(unhidden_config) && File.exist?(hidden_config)
+          raise UserError, "Both #{unhidden_config} and #{hidden_config} found. Please use one or the other."
+        end
+
+        default_local_config
       end
 
       # Determines the default absolute path to the Kitchen global YAML file,
